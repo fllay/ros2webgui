@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ROS 2 WebSocket Bridge</title>
+    <title>ROS 2 WebSocket Bridge New</title>
   </head>
   <body>
     <script src="{{ url_for('static', filename='js/three.min.js') }}"></script>
@@ -12,7 +12,7 @@
     <div id="3d-viewer"></div>
 
     <script>
-      const ws = new WebSocket("ws://192.168.68.11:8888");
+      const ws = new WebSocket("ws://192.168.68.70:8888");
 
       // Create a Three.js scene
       var mapres = 0;
@@ -463,28 +463,6 @@
               direction_q
             );
 
-            /*const mapFrameQuaternionx = new THREE.Quaternion().setFromAxisAngle(
-              new THREE.Vector3(1, 0, 0),
-              -Math.PI / 2
-            );
-            const mapFrameQuaternionz = new THREE.Quaternion().setFromAxisAngle(
-              new THREE.Vector3(0, 0, 1),
-              Math.PI / 2
-            );
-            const finalQuaternionx = new THREE.Quaternion().multiplyQuaternions(
-              mapFrameQuaternionz,
-              direction_q
-            );
-             const finalQuaternion = new THREE.Quaternion().multiplyQuaternions(
-              mapFrameQuaternionz,
-              finalQuaternionx
-            );
-
-            const finalQuaternion = new THREE.Quaternion().multiplyQuaternions(
-              mapFrameQuaternion,
-              finalQuaternionx
-            );*/
-
             arrowPose = {
               position: {
                 x: startPoint.x * mapres,
@@ -514,7 +492,7 @@
           console.log(arrowGroup);
           const rosPose = getPoseFromArrow(arrowGroup);
           console.log(rosPose);
-          const payload = { type: "action", data: arrowPose };
+          const payload = { type: "action", name: "navtopose" , data: arrowPose };
           ws.send(JSON.stringify(payload));
         }
       });

@@ -180,8 +180,7 @@ class WebSocketROS2Bridge(Node):
         
         return pose_s
 
-    def ws_massage_handler(self, message):
-         print(f"Received message: {message}")
+  
     async def websocket_handler(self, websocket, path):
         self.clients1.add(websocket)
         #print("Websocket connected")
@@ -191,12 +190,13 @@ class WebSocketROS2Bridge(Node):
                 # Process incoming messages here
                 #print(f"Received message: {message}")
                 json_dada = json.loads(message)
+                if(json_dada['type'] == "action"):
+                    if(json_dada['name'] == "navtopose"):
+                        print(json_dada['data'])
+                        pp = self.convert_json_pose_to_poasestamp(json_dada['data'])
+                        print(pp)
+                        self.send_goal(pp)
                 
-                print(json_dada['data'])
-                pp = self.convert_json_pose_to_poasestamp(json_dada['data'])
-                print(pp)
-                self.send_goal(pp)
-                #self.ws_massage_handler(message)
         except websockets.ConnectionClosed:
             pass
         finally:
