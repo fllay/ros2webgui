@@ -3,518 +3,617 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ROS 2 WebSocket Bridge New</title>
+    <title>ROS 2 WebSocket</title>
   </head>
   <body>
+    <div class="container-fluid">
+ 
+      <div class="row">
+        <!-- First Column: Menu -->
+
+        <div class="col s3 column-1">
+          <h5>Menu Content</h5>
+          <div class="collection">
+            <a href="#!" class="collection-item">Button 1</a>
+            <a href="#!" class="collection-item">Button 2</a>
+            <a href="#!" class="collection-item">Button 3</a>
+            <a href="#!" class="collection-item">Button 4</a>
+        </div>
+        </div>
+
+        <!-- Second Column: Main Content -->
+        <div class="col s6 column-2">
+          <h5>Main Content</h5>
+          <p>This is where your main content will go.</p>
+          <div id="3d-viewer"></div>
+        </div>
+
+        <!-- Third Column: Additional Content -->
+        <div class="col s3 column-3">
+          <h5>Additional Content</h5>
+          <p>This is where additional content can be placed.</p>
+        </div>
+      </div>
+    </div>
+
     <script src="{{ url_for('static', filename='js/three.min.js') }}"></script>
     <script src="{{ url_for('static', filename='js/OrbitControls.js') }}"></script>
-    <h1>ROS 2 WebSocket Bridge!!!</h1>
-    <div id="3d-viewer"></div>
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css"
+      rel="stylesheet"
+    />
+    <!-- Materialize JavaScript -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+
+    <!-- Custom CSS -->
+    <style>
+      .full-height {
+        height: 100vh; /* Full height of the viewport */
+      }
+      .container {
+        height: 100%;
+      }
+      .container-fluid {
+        width: 100%;
+        height: 100%; /* Full height of the viewport */
+        margin: 0;
+        padding: 0;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+      }
+      .row {
+        height: 100%;
+        margin: 0;
+      }
+      #3d-viewer {
+        width: 100%;
+        height: 100%;
+        background-color: #e0e0e0;
+      }
+   
+
+      .column-1 {
+        background-color: #ffccbc;
+        flex: 1;
+        min-width: 200px;
+      }
+      .column-2 {
+        background-color: #bbdefb;
+        flex: 3;
+      }
+      .column-3 {
+        background-color: #c8e6c9;
+        flex: 1;
+      }
+    </style>
 
     <script>
       const ws = new WebSocket("ws://192.168.68.70:8888");
 
       // Create a Three.js scene
       var mapres = 0;
-      const scene = new THREE.Scene();
-      const camera = new THREE.PerspectiveCamera(
-        75,
-        window.innerWidth / window.innerHeight,
-        0.1,
-        1000
-      );
-      const renderer = new THREE.WebGLRenderer();
-      renderer.setSize(window.innerWidth * 0.8, window.innerHeight * 0.8);
-      document.getElementById("3d-viewer").appendChild(renderer.domElement);
+      function initThreeJS() {
+        var container;
+        container = document.getElementById("3d-viewer");
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(
+          75,
+          container.clientWidth / 800,
+          0.1,
+          1000
+        );
+        //renderer.setSize(container.clientWidth, container.clientHeight);
+        console.log("------> Container size");
+        console.log(container);
+        console.log(container.clientHeight);
 
-      // Add a basic light
-      const light = new THREE.AmbientLight(0x404040); // soft white light
-      scene.add(light);
+        const renderer = new THREE.WebGLRenderer();
+        //document.getElementById("3d-viewer").appendChild(renderer.domElement);
 
-      var grid = new THREE.GridHelper(100, 10);
-      grid.geometry.rotateX(Math.PI / 2);
-      grid.renderOrder = 6;
-      scene.add(grid);
+        //var container = document.getElementById('3d-viewer');
+        renderer.setSize(container.clientWidth, 800);
 
-      // Add axes helper
-      const axesHelper = new THREE.AxesHelper(5);
-      axesHelper.renderOrder = 8;
-      scene.add(axesHelper);
+        container.appendChild(renderer.domElement);
 
-      const dir = new THREE.Vector3(1, 0, 0);
+        // Add a basic light
+        const light = new THREE.AmbientLight(0x404040); // soft white light
+        scene.add(light);
 
-      //normalize the direction vector (convert to vector of length 1)
-      dir.normalize();
+        var grid = new THREE.GridHelper(100, 10);
+        grid.geometry.rotateX(Math.PI / 2);
+        grid.renderOrder = 6;
+        scene.add(grid);
 
-      const origin = new THREE.Vector3(0, 0, 0);
-      const length = 1;
-      const hex = 0xffff00;
+        // Add axes helper
+        const axesHelper = new THREE.AxesHelper(5);
+        axesHelper.renderOrder = 8;
+        scene.add(axesHelper);
 
-      const arrowHelper = new THREE.ArrowHelper(dir, origin, length, hex);
-      arrowHelper.renderOrder = 9;
-      scene.add(arrowHelper);
+        const dir = new THREE.Vector3(1, 0, 0);
 
-      // Create textures for map
-      let mapTexture,
-        mapMaterial,
-        mapMesh,
-        org_x,
-        org_y,
-        pointCloud,
-        mheight,
-        arrowPose,
-        map_quatanion;
+        //normalize the direction vector (convert to vector of length 1)
+        dir.normalize();
 
-      // Initialize OrbitControls
-      const controls = new THREE.OrbitControls(camera, renderer.domElement);
-      // Disable rotation
-      controls.enableRotate = false;
+        const origin = new THREE.Vector3(0, 0, 0);
+        const length = 1;
+        const hex = 0xffff00;
 
-      // Enable panning
-      controls.enablePan = true;
-      // Variables to track mouse events
-      let startPoint = null;
-      let arrowGroup = null;
+        const arrowHelper = new THREE.ArrowHelper(dir, origin, length, hex);
+        arrowHelper.renderOrder = 9;
+        scene.add(arrowHelper);
 
-      //--------------------------------  Pointcloud2 data renderer in map ---------------
-      function base64ToArrayBuffer(base64) {
-        var binaryString = window.atob(base64);
-        var len = binaryString.length;
-        var bytes = new Uint8Array(len);
-        for (var i = 0; i < len; i++) {
-          bytes[i] = binaryString.charCodeAt(i);
+        // Create textures for map
+        let mapTexture,
+          mapMaterial,
+          mapMesh,
+          org_x,
+          org_y,
+          pointCloud,
+          mheight,
+          arrowPose,
+          map_quatanion;
+
+        // Initialize OrbitControls
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        // Disable rotation
+        controls.enableRotate = false;
+
+        // Enable panning
+        controls.enablePan = true;
+        // Variables to track mouse events
+        let startPoint = null;
+        let arrowGroup = null;
+
+        //--------------------------------  Pointcloud2 data renderer in map ---------------
+        function base64ToArrayBuffer(base64) {
+          var binaryString = window.atob(base64);
+          var len = binaryString.length;
+          var bytes = new Uint8Array(len);
+          for (var i = 0; i < len; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+          }
+          return bytes.buffer;
         }
-        return bytes.buffer;
-      }
 
-      function parsePointCloud2(message) {
-        var points = [];
-        var data = message.data;
+        function parsePointCloud2(message) {
+          var points = [];
+          var data = message.data;
 
-        // Check if data is a base64 string
-        if (typeof data === "string") {
-          data = base64ToArrayBuffer(data); // Convert base64 string to ArrayBuffer
-        }
+          // Check if data is a base64 string
+          if (typeof data === "string") {
+            data = base64ToArrayBuffer(data); // Convert base64 string to ArrayBuffer
+          }
 
-        // Ensure data is now an ArrayBuffer
-        if (!(data instanceof ArrayBuffer)) {
-          console.error("Data is not in a valid ArrayBuffer format");
+          // Ensure data is now an ArrayBuffer
+          if (!(data instanceof ArrayBuffer)) {
+            console.error("Data is not in a valid ArrayBuffer format");
+            return points;
+          }
+
+          var pointStep = message.point_step;
+          var offsetX = message.fields.find((f) => f.name === "x").offset;
+          var offsetY = message.fields.find((f) => f.name === "y").offset;
+          var offsetZ = message.fields.find((f) => f.name === "z").offset;
+
+          var view = new DataView(data);
+          for (var i = 0; i < data.byteLength; i += pointStep) {
+            var x = view.getFloat32(i + offsetX, true);
+            var y = view.getFloat32(i + offsetY, true);
+            var z = view.getFloat32(i + offsetZ, true);
+
+            if (isFinite(x) && isFinite(y) && isFinite(z)) {
+              // Check for valid numbers
+              points.push(new THREE.Vector3(x, y, z));
+            }
+          }
+
           return points;
         }
 
-        var pointStep = message.point_step;
-        var offsetX = message.fields.find((f) => f.name === "x").offset;
-        var offsetY = message.fields.find((f) => f.name === "y").offset;
-        var offsetZ = message.fields.find((f) => f.name === "z").offset;
+        function renderPointCloud(points) {
+          // Create geometry for the point cloud
+          var geometry = new THREE.BufferGeometry();
+          var vertices = new Float32Array(points.length * 3);
 
-        var view = new DataView(data);
-        for (var i = 0; i < data.byteLength; i += pointStep) {
-          var x = view.getFloat32(i + offsetX, true);
-          var y = view.getFloat32(i + offsetY, true);
-          var z = view.getFloat32(i + offsetZ, true);
-
-          if (isFinite(x) && isFinite(y) && isFinite(z)) {
-            // Check for valid numbers
-            points.push(new THREE.Vector3(x, y, z));
+          for (var i = 0; i < points.length; i++) {
+            vertices[i * 3] = points[i].x / mapres;
+            vertices[i * 3 + 1] = points[i].y / mapres;
+            vertices[i * 3 + 2] = points[i].z;
           }
+
+          geometry.setAttribute(
+            "position",
+            new THREE.BufferAttribute(vertices, 3)
+          );
+
+          // Create material for points
+          var material = new THREE.PointsMaterial({
+            color: 0xff0000,
+            side: THREE.DoubleSide,
+            size: 1,
+          });
+
+          if (pointCloud) {
+            scene.remove(pointCloud);
+          }
+
+          // Create point cloud
+          // console.log(geometry)
+          pointCloud = new THREE.Points(geometry, material);
+          pointCloud.renderOrder = 4;
+          pointCloud.position.set(0, 0, 0);
+          //pointCloud.rotation.z = Math.PI / 2;
+          scene.add(pointCloud);
+
+          //console.log("Add point cloud")
         }
+        //---------------------------- Map renderer ------------------------------------
+        function drawMap(message) {
+          const width = message.info.width;
+          const height = message.info.height;
+          const resolution = message.info.resolution;
+          const origin = message.info.origin;
+          org_x = origin.position.x;
+          org_y = origin.position.y;
+          mheight = height;
+          mapres = resolution;
+          map_quatanion = message.info.origin.orientation;
+          console.log(map_quatanion);
 
-        return points;
-      }
+          const colors = ["#ffffff", "#000000", "#606060"]; // White and black squares
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
 
-      function renderPointCloud(points) {
-        // Create geometry for the point cloud
-        var geometry = new THREE.BufferGeometry();
-        var vertices = new Float32Array(points.length * 3);
+          const originX = message.info.origin.position.x;
+          const originY = message.info.origin.position.y;
 
-        for (var i = 0; i < points.length; i++) {
-          vertices[i * 3] = points[i].x / mapres;
-          vertices[i * 3 + 1] = points[i].y / mapres;
-          vertices[i * 3 + 2] = points[i].z;
-        }
+          for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+              const index = y * width + x;
+              const flippedY = height - 1 - y;
 
-        geometry.setAttribute(
-          "position",
-          new THREE.BufferAttribute(vertices, 3)
-        );
+              if (message.data[index] == -1) {
+                ctx.fillStyle = colors[2];
+              } else if (message.data[index] == 0) {
+                ctx.fillStyle = colors[0];
+              } else {
+                ctx.fillStyle = colors[1];
+              }
 
-        // Create material for points
-        var material = new THREE.PointsMaterial({
-          color: 0xff0000,
-          side: THREE.DoubleSide,
-          size: 1,
-        });
+              // Compute the actual map coordinates
+              const worldX = x;
+              const worldY = flippedY;
 
-        if (pointCloud) {
-          scene.remove(pointCloud);
-        }
+              //const worldX = x;
+              //const worldY = y;
 
-        // Create point cloud
-        // console.log(geometry)
-        pointCloud = new THREE.Points(geometry, material);
-        pointCloud.renderOrder = 4;
-        pointCloud.position.set(0, 0, 0);
-        //pointCloud.rotation.z = Math.PI / 2;
-        scene.add(pointCloud);
+              // Convert world coordinates to canvas coordinates
+              const canvasX = worldX;
+              const canvasY = worldY;
+              // Convert world coordinates to canvas coordinates
+              //const canvasX = Math.round(worldX);
+              //const canvasY = Math.round(flippedY);
 
-        //console.log("Add point cloud")
-      }
-      //---------------------------- Map renderer ------------------------------------
-      function drawMap(message) {
-        const width = message.info.width;
-        const height = message.info.height;
-        const resolution = message.info.resolution;
-        const origin = message.info.origin;
-        org_x = origin.position.x;
-        org_y = origin.position.y;
-        mheight = height;
-        mapres = resolution;
-        map_quatanion = message.info.origin.orientation;
-        console.log(map_quatanion);
-
-        const colors = ["#ffffff", "#000000", "#606060"]; // White and black squares
-        const canvas = document.createElement("canvas");
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext("2d");
-
-        const originX = message.info.origin.position.x;
-        const originY = message.info.origin.position.y;
-
-        for (let y = 0; y < height; y++) {
-          for (let x = 0; x < width; x++) {
-            const index = y * width + x;
-            const flippedY = height - 1 - y;
-
-            if (message.data[index] == -1) {
-              ctx.fillStyle = colors[2];
-            } else if (message.data[index] == 0) {
-              ctx.fillStyle = colors[0];
-            } else {
-              ctx.fillStyle = colors[1];
+              ctx.fillRect(canvasX, canvasY, 1, 1); // Adjusted for origin
             }
-
-            // Compute the actual map coordinates
-            const worldX = x;
-            const worldY = flippedY;
-
-            //const worldX = x;
-            //const worldY = y;
-
-            // Convert world coordinates to canvas coordinates
-            const canvasX = worldX;
-            const canvasY = worldY;
-            // Convert world coordinates to canvas coordinates
-            //const canvasX = Math.round(worldX);
-            //const canvasY = Math.round(flippedY);
-
-            ctx.fillRect(canvasX, canvasY, 1, 1); // Adjusted for origin
           }
+
+          if (mapTexture) {
+            scene.remove(mapMesh);
+          }
+
+          mapTexture = new THREE.CanvasTexture(canvas);
+          mapTexture.needsUpdate = true; // Ensure the texture is updated
+
+          mapMaterial = new THREE.MeshBasicMaterial({
+            map: mapTexture,
+            side: THREE.DoubleSide,
+          });
+
+          //const scaleFactor = 1; // Scale factor to increase the size on canvas
+          const mapGeometry = new THREE.PlaneGeometry(width, height);
+          mapMesh = new THREE.Mesh(mapGeometry, mapMaterial);
+          mapMesh.renderOrder = 1;
+          mapMesh.position.set(
+            originX / resolution + width / 2,
+            originY / resolution + height / 2,
+            0
+          ); // Position at the origin
+          //mapMesh.rotation.z = Math.PI / 2; // Rotate to face upwards
+
+          //mapMesh.scale.set(scaleFactor, scaleFactor, 1);
+          scene.add(mapMesh);
+
+          console.log("Map texture applied");
+        }
+        //-------------------------- Robit post renderer ------------------------
+        const geometry_cube = new THREE.BoxGeometry(3, 3, 3);
+        const material_cube = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+        const cube_robot = new THREE.Mesh(geometry_cube, material_cube);
+        scene.add(cube_robot);
+
+        function updatePose(pose) {
+          // Extract pose position and orientation
+          const { x, y, z } = pose.pose.position;
+          const { x: qx, y: qy, z: qz, w: qw } = pose.pose.orientation;
+
+          // Update cube position
+          //cube.position.set(x/mapres + org_x/mapres, y/mapres + org_y/mapres + mheight, z/mapres);
+          cube_robot.position.set(x / mapres, y / mapres, z / mapres);
+
+          // Optionally, convert quaternion to Euler angles for rotation
+          const euler = new THREE.Euler().setFromQuaternion(
+            new THREE.Quaternion(qx, qy, qz, qw)
+          );
+          cube_robot.rotation.set(euler.x, euler.y, euler.z);
         }
 
-        if (mapTexture) {
-          scene.remove(mapMesh);
+        function updatePoints(data) {
+          //console.log(camera.position)
+          const positions = new Float32Array(data.ranges.length * 3);
+          data.ranges.forEach((range, index) => {
+            const angle = (index * 2 * Math.PI) / data.ranges.length;
+            positions[index * 3] = range * Math.cos(angle);
+            positions[index * 3 + 1] = range * Math.sin(angle);
+            positions[index * 3 + 2] = 0;
+          });
+          geometry.setAttribute(
+            "position",
+            new THREE.BufferAttribute(positions, 3)
+          );
+
+          geometry.attributes.position.needsUpdate = true;
         }
-
-        mapTexture = new THREE.CanvasTexture(canvas);
-        mapTexture.needsUpdate = true; // Ensure the texture is updated
-
-        mapMaterial = new THREE.MeshBasicMaterial({
-          map: mapTexture,
-          side: THREE.DoubleSide,
-        });
-
-        //const scaleFactor = 1; // Scale factor to increase the size on canvas
-        const mapGeometry = new THREE.PlaneGeometry(width, height);
-        mapMesh = new THREE.Mesh(mapGeometry, mapMaterial);
-        mapMesh.renderOrder = 1;
-        mapMesh.position.set(
-          originX / resolution + width / 2,
-          originY / resolution + height / 2,
-          0
-        ); // Position at the origin
-        //mapMesh.rotation.z = Math.PI / 2; // Rotate to face upwards
-
-        //mapMesh.scale.set(scaleFactor, scaleFactor, 1);
-        scene.add(mapMesh);
-
-        console.log("Map texture applied");
-      }
-      //-------------------------- Robit post renderer ------------------------
-      const geometry_cube = new THREE.BoxGeometry(3, 3, 3);
-      const material_cube = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-      const cube_robot = new THREE.Mesh(geometry_cube, material_cube);
-      scene.add(cube_robot);
-
-      function updatePose(pose) {
-        // Extract pose position and orientation
-        const { x, y, z } = pose.pose.position;
-        const { x: qx, y: qy, z: qz, w: qw } = pose.pose.orientation;
-
-        // Update cube position
-        //cube.position.set(x/mapres + org_x/mapres, y/mapres + org_y/mapres + mheight, z/mapres);
-        cube_robot.position.set(x / mapres, y / mapres, z / mapres);
-
-        // Optionally, convert quaternion to Euler angles for rotation
-        const euler = new THREE.Euler().setFromQuaternion(
-          new THREE.Quaternion(qx, qy, qz, qw)
-        );
-        cube_robot.rotation.set(euler.x, euler.y, euler.z);
-      }
-
-      function updatePoints(data) {
-        //console.log(camera.position)
-        const positions = new Float32Array(data.ranges.length * 3);
-        data.ranges.forEach((range, index) => {
-          const angle = (index * 2 * Math.PI) / data.ranges.length;
-          positions[index * 3] = range * Math.cos(angle);
-          positions[index * 3 + 1] = range * Math.sin(angle);
-          positions[index * 3 + 2] = 0;
-        });
-        geometry.setAttribute(
-          "position",
-          new THREE.BufferAttribute(positions, 3)
-        );
-
-        geometry.attributes.position.needsUpdate = true;
-      }
-      //-------------------------- Websocket data transfer -------------------
-      // When the WebSocket is opened
-      ws.onopen = function () {
-        console.log("WebSocket connection opened");
-      };
-
-      // When a message is received from the WebSocket server
-      ws.onmessage = function (event) {
-        const message = JSON.parse(event.data);
-
-        // Filter messages by topic name
-        if (message.topic === "map") {
-          // Process the map data
-          //console.log("Get map!!!!");
-          //console.log(message.data);
-          drawMap(message.data);
-        }
-
-        if (message.topic === "robot_pose_in_map") {
-          // Process the map data
-          //console.log("Robot pose")
-          //console.log(message.data);
-          updatePose(message.data);
-        }
-
-        if (message.topic === "scan_pointcloud") {
-          // Process the map data
-          //console.log("Robot pose")
-          //console.log(message.data);
-          var points = parsePointCloud2(message.data);
-          //console.log(points)
-          renderPointCloud(points);
-        }
-      };
-
-      // When the WebSocket connection is closed
-      ws.onclose = function () {
-        console.log("WebSocket connection closed");
-      };
-
-      //------------------------------------------------------------------------------------
-      //                          Draw arrow
-      //------------------------------------------------------------------------------------
-      function getPoseFromArrow(arrow) {
-        const pose = {
-          position: {
-            x: arrow.position.x,
-            y: arrow.position.y,
-            z: arrow.position.z,
-          },
-          orientation: {
-            x: arrow.quaternion.x,
-            y: arrow.quaternion.y,
-            z: arrow.quaternion.z,
-            w: arrow.quaternion.w,
-          },
+        //-------------------------- Websocket data transfer -------------------
+        // When the WebSocket is opened
+        ws.onopen = function () {
+          console.log("WebSocket connection opened");
         };
 
-        return pose;
-      }
-      // Function to convert 2D mouse position to 3D space on the XY plane
-      function getMousePosition(event) {
-        const rect = renderer.domElement.getBoundingClientRect();
-        const mouse = new THREE.Vector2();
-        mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-        mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+        // When a message is received from the WebSocket server
+        ws.onmessage = function (event) {
+          const message = JSON.parse(event.data);
 
-        const raycaster = new THREE.Raycaster();
-        raycaster.setFromCamera(mouse, camera);
-
-        // Intersect with a plane on the XY plane (z = 0)
-        const planeZ = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
-        const intersectPoint = new THREE.Vector3();
-
-        raycaster.ray.intersectPlane(planeZ, intersectPoint);
-
-        return intersectPoint;
-      }
-
-      // Create custom arrow geometry
-      function createThickerArrow(start, end) {
-        const direction = new THREE.Vector3()
-          .subVectors(end, start)
-          .normalize();
-        const length = start.distanceTo(end);
-
-        const midpoint = new THREE.Vector3()
-          .addVectors(start, end)
-          .multiplyScalar(0.5);
-
-        // Arrow shaft
-        const shaftGeometry = new THREE.CylinderGeometry(
-          0.3,
-          0.3,
-          length - 0.3,
-          32
-        ); // Adjust thickness here
-        const shaftMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-        const shaft = new THREE.Mesh(shaftGeometry, shaftMaterial);
-
-        // Position shaft at the midpoint between start and end
-        shaft.position.copy(start).add(end).multiplyScalar(0.5);
-
-        // Rotate shaft to align with the direction vector
-        shaft.quaternion.setFromUnitVectors(
-          new THREE.Vector3(0, 1, 0),
-          direction
-        );
-
-        // Arrow head
-        const headGeometry = new THREE.ConeGeometry(0.5, 1.0, 32); // Adjust thickness here
-        const headMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-        const head = new THREE.Mesh(headGeometry, headMaterial);
-
-        // Position head at the end of the arrow
-        head.position.copy(end);
-
-        // Rotate head to align with the direction vector
-        head.quaternion.setFromUnitVectors(
-          new THREE.Vector3(0, 1, 0),
-          direction
-        );
-
-        // Group both parts together
-        const arrow = new THREE.Group();
-        arrow.add(shaft);
-        arrow.add(head);
-        // Set the arrow group's position to the midpoint
-
-        console.log(arrow);
-        return arrow;
-      }
-      //------------------------------------------------------------------------------------
-      //                             Mouse event handler
-      //------------------------------------------------------------------------------------
-      // Start drawing the arrow on mousedown
-      document.addEventListener("mousedown", (event) => {
-        startPoint = getMousePosition(event);
-      });
-
-      // Update the arrow on mousemove
-      document.addEventListener("mousemove", (event) => {
-        if (startPoint) {
-          const endPoint = getMousePosition(event);
-          if (endPoint) {
-            // Remove the old arrow
-            if (arrowGroup) {
-              scene.remove(arrowGroup);
-            }
-
-            // Create a new thicker arrow
-            arrowGroup = createThickerArrow(startPoint, endPoint);
-            const direction = new THREE.Vector3()
-              .subVectors(startPoint, endPoint)
-              .normalize();
-            // Create a quaternion
-            const quaternion = new THREE.Quaternion();
-
-            // Set the quaternion to rotate from the initialVector to the targetVector
-            const direction_q = quaternion.setFromUnitVectors(
-              new THREE.Vector3(0, 1, 0),
-              direction
-            );
-
-            const mapFrameQuaternion = new THREE.Quaternion(
-              map_quatanion.x,
-              map_quatanion.y,
-              map_quatanion.z,
-              map_quatanion.w
-            );
-
-            const rotationQuaternionz = new THREE.Quaternion();
-            rotationQuaternionz.setFromEuler(
-              new THREE.Euler(0, 0, -Math.PI / 2)
-            ); // 90 degrees around Z-axis
-
-            // Create a new quaternion to store the result
-            const resultQuaternion = new THREE.Quaternion();
-
-            // Apply the rotation
-            resultQuaternion.multiplyQuaternions(
-              rotationQuaternionz,
-              direction_q
-            );
-
-            arrowPose = {
-              position: {
-                x: startPoint.x * mapres,
-                y: startPoint.y * mapres,
-                z: startPoint.z * mapres,
-              },
-              orientation: {
-                x: resultQuaternion.x,
-                y: resultQuaternion.y,
-                z: resultQuaternion.z,
-                w: resultQuaternion.w,
-              },
-            };
-            console.log("------->");
-            console.log(arrowPose);
-            console.log(resultQuaternion);
-            console.log("********>");
-            scene.add(arrowGroup);
+          // Filter messages by topic name
+          if (message.topic === "map") {
+            // Process the map data
+            //console.log("Get map!!!!");
+            //console.log(message.data);
+            drawMap(message.data);
           }
-        }
-      });
 
-      document.addEventListener("mouseup", () => {
-        startPoint = null;
-        // The arrow remains in the scene after mouseup
-        if (arrowGroup) {
-          console.log(arrowGroup);
-          const rosPose = getPoseFromArrow(arrowGroup);
-          console.log(rosPose);
-          const payload = { type: "action", name: "navtopose" , data: arrowPose };
-          ws.send(JSON.stringify(payload));
-        }
-      });
+          if (message.topic === "robot_pose_in_map") {
+            // Process the map data
+            //console.log("Robot pose")
+            //console.log(message.data);
+            updatePose(message.data);
+          }
 
-      //-------------------------- Render loop ----------------------------
-      function animate() {
-        requestAnimationFrame(animate);
-        renderer.render(scene, camera);
+          if (message.topic === "scan_pointcloud") {
+            // Process the map data
+            //console.log("Robot pose")
+            //console.log(message.data);
+            var points = parsePointCloud2(message.data);
+            //console.log(points)
+            renderPointCloud(points);
+          }
+        };
+
+        // When the WebSocket connection is closed
+        ws.onclose = function () {
+          console.log("WebSocket connection closed");
+        };
+
+        //------------------------------------------------------------------------------------
+        //                          Draw arrow
+        //------------------------------------------------------------------------------------
+        function getPoseFromArrow(arrow) {
+          const pose = {
+            position: {
+              x: arrow.position.x,
+              y: arrow.position.y,
+              z: arrow.position.z,
+            },
+            orientation: {
+              x: arrow.quaternion.x,
+              y: arrow.quaternion.y,
+              z: arrow.quaternion.z,
+              w: arrow.quaternion.w,
+            },
+          };
+
+          return pose;
+        }
+        // Function to convert 2D mouse position to 3D space on the XY plane
+        function getMousePosition(event) {
+          const rect = renderer.domElement.getBoundingClientRect();
+          const mouse = new THREE.Vector2();
+          mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+          mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+          const raycaster = new THREE.Raycaster();
+          raycaster.setFromCamera(mouse, camera);
+
+          // Intersect with a plane on the XY plane (z = 0)
+          const planeZ = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+          const intersectPoint = new THREE.Vector3();
+
+          raycaster.ray.intersectPlane(planeZ, intersectPoint);
+
+          return intersectPoint;
+        }
+
+        // Create custom arrow geometry
+        function createThickerArrow(start, end) {
+          const direction = new THREE.Vector3()
+            .subVectors(end, start)
+            .normalize();
+          const length = start.distanceTo(end);
+
+          const midpoint = new THREE.Vector3()
+            .addVectors(start, end)
+            .multiplyScalar(0.5);
+
+          // Arrow shaft
+          const shaftGeometry = new THREE.CylinderGeometry(
+            0.3,
+            0.3,
+            length - 0.3,
+            32
+          ); // Adjust thickness here
+          const shaftMaterial = new THREE.MeshBasicMaterial({
+            color: 0xff0000,
+          });
+          const shaft = new THREE.Mesh(shaftGeometry, shaftMaterial);
+
+          // Position shaft at the midpoint between start and end
+          shaft.position.copy(start).add(end).multiplyScalar(0.5);
+
+          // Rotate shaft to align with the direction vector
+          shaft.quaternion.setFromUnitVectors(
+            new THREE.Vector3(0, 1, 0),
+            direction
+          );
+
+          // Arrow head
+          const headGeometry = new THREE.ConeGeometry(0.5, 1.0, 32); // Adjust thickness here
+          const headMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+          const head = new THREE.Mesh(headGeometry, headMaterial);
+
+          // Position head at the end of the arrow
+          head.position.copy(end);
+
+          // Rotate head to align with the direction vector
+          head.quaternion.setFromUnitVectors(
+            new THREE.Vector3(0, 1, 0),
+            direction
+          );
+
+          // Group both parts together
+          const arrow = new THREE.Group();
+          arrow.add(shaft);
+          arrow.add(head);
+          // Set the arrow group's position to the midpoint
+
+          console.log(arrow);
+          return arrow;
+        }
+        //------------------------------------------------------------------------------------
+        //                             Mouse event handler
+        //------------------------------------------------------------------------------------
+        // Start drawing the arrow on mousedown
+        document.addEventListener("mousedown", (event) => {
+          startPoint = getMousePosition(event);
+        });
+
+        // Update the arrow on mousemove
+        document.addEventListener("mousemove", (event) => {
+          if (startPoint) {
+            const endPoint = getMousePosition(event);
+            if (endPoint) {
+              // Remove the old arrow
+              if (arrowGroup) {
+                scene.remove(arrowGroup);
+              }
+
+              // Create a new thicker arrow
+              arrowGroup = createThickerArrow(startPoint, endPoint);
+              const direction = new THREE.Vector3()
+                .subVectors(startPoint, endPoint)
+                .normalize();
+              // Create a quaternion
+              const quaternion = new THREE.Quaternion();
+
+              // Set the quaternion to rotate from the initialVector to the targetVector
+              const direction_q = quaternion.setFromUnitVectors(
+                new THREE.Vector3(0, 1, 0),
+                direction
+              );
+
+              const mapFrameQuaternion = new THREE.Quaternion(
+                map_quatanion.x,
+                map_quatanion.y,
+                map_quatanion.z,
+                map_quatanion.w
+              );
+
+              const rotationQuaternionz = new THREE.Quaternion();
+              rotationQuaternionz.setFromEuler(
+                new THREE.Euler(0, 0, -Math.PI / 2)
+              ); // 90 degrees around Z-axis
+
+              // Create a new quaternion to store the result
+              const resultQuaternion = new THREE.Quaternion();
+
+              // Apply the rotation
+              resultQuaternion.multiplyQuaternions(
+                rotationQuaternionz,
+                direction_q
+              );
+
+              arrowPose = {
+                position: {
+                  x: startPoint.x * mapres,
+                  y: startPoint.y * mapres,
+                  z: startPoint.z * mapres,
+                },
+                orientation: {
+                  x: resultQuaternion.x,
+                  y: resultQuaternion.y,
+                  z: resultQuaternion.z,
+                  w: resultQuaternion.w,
+                },
+              };
+              console.log("------->");
+              console.log(arrowPose);
+              console.log(resultQuaternion);
+              console.log("********>");
+              scene.add(arrowGroup);
+            }
+          }
+        });
+
+        document.addEventListener("mouseup", () => {
+          startPoint = null;
+          // The arrow remains in the scene after mouseup
+          if (arrowGroup) {
+            console.log(arrowGroup);
+            const rosPose = getPoseFromArrow(arrowGroup);
+            console.log(rosPose);
+            const payload = {
+              type: "action",
+              name: "navtopose",
+              data: arrowPose,
+            };
+            ws.send(JSON.stringify(payload));
+          }
+        });
+
+        //-------------------------- Render loop ----------------------------
+        function animate() {
+          requestAnimationFrame(animate);
+          renderer.render(scene, camera);
+        }
+
+        animate();
+
+        // Adjust camera position
+        camera.position.set(0, 0, 500);
+        //camera.lookAt(0, 0, 1);
+        window.addEventListener("resize", () => {
+          renderer.setSize(container.clientWidth, container.clientHeight);
+          camera.aspect = container.clientWidth / container.clientHeight;
+          camera.updateProjectionMatrix();
+        });
       }
 
-      animate();
-
-      // Adjust camera position
-      camera.position.set(0, 0, 500);
-      //camera.lookAt(0, 0, 1);
-
+      document.addEventListener("DOMContentLoaded", initThreeJS);
       // Handle window resize
-      window.addEventListener("resize", () => {
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
-      });
     </script>
   </body>
 </html>

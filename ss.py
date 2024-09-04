@@ -196,6 +196,13 @@ class WebSocketROS2Bridge(Node):
                         pp = self.convert_json_pose_to_poasestamp(json_dada['data'])
                         print(pp)
                         self.send_goal(pp)
+                elif(json_dada['type'] == "topic"):
+                    if(json_dada['name'] == "dummytopic"):
+                        pass
+                elif(json_dada['type'] == "service"):
+                    if(json_dada['name'] == "dummyservice"):
+                        pass
+        
                 
         except websockets.ConnectionClosed:
             pass
